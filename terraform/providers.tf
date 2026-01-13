@@ -4,7 +4,7 @@ terraform {
   cloud {
     organization = "zshzebra"
     workspaces {
-      name = ["infrastructure"]
+      name = "infrastructure"
     }
   }
 
