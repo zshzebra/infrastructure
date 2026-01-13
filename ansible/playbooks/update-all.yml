@@ -1,0 +1,28 @@
+---
+- name: Update all services
+  hosts: docker_hosts
+  become: true
+
+  tasks:
+    - name: Backup all services first
+      ansible.builtin.include_tasks: ../roles/service/tasks/backup.yml
+      vars:
+        service_name: "{{ item.key }}"
+        service: "{{ item.value }}"
+        backup_tag: "pre-update-all-{{ ansible_date_time.iso8601_basic_short }}"
+      loop: "{{ services | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Update each service
+      ansible.builtin.include_tasks: update-single-service-tasks.yml
+      vars:
+        service_name: "{{ item.key }}"
+        service: "{{ item.value }}"
+      loop: "{{ services | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: "All services updated successfully"

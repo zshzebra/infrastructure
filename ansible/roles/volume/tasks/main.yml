@@ -1,0 +1,45 @@
+---
+# Volume role - Format and mount Hetzner Volume for Docker data
+
+- name: Check if volume device exists
+  ansible.builtin.stat:
+    path: "{{ docker_volume_device }}"
+  register: volume_device
+
+- name: Fail if volume device not found
+  ansible.builtin.fail:
+    msg: "Volume device {{ docker_volume_device }} not found. Ensure Hetzner Volume is attached."
+  when: not volume_device.stat.exists
+
+- name: Check if volume is already formatted
+  ansible.builtin.command:
+    cmd: blkid -s TYPE -o value {{ docker_volume_device }}
+  register: volume_fstype
+  changed_when: false
+  failed_when: false
+
+- name: Format volume as ext4 (if not already formatted)
+  ansible.builtin.filesystem:
+    fstype: ext4
+    dev: "{{ docker_volume_device }}"
+  when: volume_fstype.stdout == ""
+
+- name: Create mount point
+  ansible.builtin.file:
+    path: "{{ docker_data_root }}"
+    state: directory
+    mode: "0711"
+
+- name: Mount volume
+  ansible.posix.mount:
+    path: "{{ docker_data_root }}"
+    src: "{{ docker_volume_device }}"
+    fstype: ext4
+    opts: defaults,discard,nofail
+    state: mounted
+
+- name: Ensure correct permissions on mount point
+  ansible.builtin.file:
+    path: "{{ docker_data_root }}"
+    mode: "0711"
+    state: directory

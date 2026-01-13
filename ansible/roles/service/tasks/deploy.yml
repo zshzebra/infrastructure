@@ -1,0 +1,38 @@
+---
+# Deploy task - included by playbooks
+# Required vars: service_name, service, tunnel_tokens
+
+- name: Create service directory
+  ansible.builtin.file:
+    path: "{{ service.path }}"
+    state: directory
+    mode: "0755"
+
+- name: Create bind mount directories
+  ansible.builtin.file:
+    path: "{{ service.path }}/{{ item.source | regex_replace('^\\./', '') }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ service.volumes | selectattr('type', 'equalto', 'bind') | list }}"
+  when: service.volumes is defined
+
+- name: Template docker-compose file
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../services/{{ service_name }}/docker-compose.yml.j2"
+    dest: "{{ service.path }}/docker-compose.yml"
+    mode: "0600"
+  vars:
+    tunnel_token: "{{ tunnel_tokens[service_name] }}"
+
+- name: Pull images
+  community.docker.docker_compose_v2:
+    project_src: "{{ service.path }}"
+    pull: always
+    state: present
+  register: compose_pull
+
+- name: Start service
+  community.docker.docker_compose_v2:
+    project_src: "{{ service.path }}"
+    state: present
+  register: compose_up

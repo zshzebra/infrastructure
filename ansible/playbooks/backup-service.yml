@@ -1,0 +1,37 @@
+---
+- name: Backup service to S3
+  hosts: docker_hosts
+  become: true
+
+  tasks:
+    - name: Validate service_name is provided
+      ansible.builtin.fail:
+        msg: "service_name is required. Usage: ansible-playbook backup-service.yml -e service_name=vaultwarden (or service_name=all)"
+      when: service_name is not defined
+
+    - name: Backup all services
+      ansible.builtin.include_tasks: ../roles/service/tasks/backup.yml
+      vars:
+        service_name: "{{ item.key }}"
+        service: "{{ item.value }}"
+        backup_tag: "manual-{{ ansible_date_time.iso8601_basic_short }}"
+      loop: "{{ services | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      when: service_name == 'all'
+
+    - name: Backup single service
+      ansible.builtin.include_tasks: ../roles/service/tasks/backup.yml
+      vars:
+        service: "{{ services[service_name] }}"
+        backup_tag: "manual-{{ ansible_date_time.iso8601_basic_short }}"
+      when: service_name != 'all' and service_name in services
+
+    - name: Invalid service name
+      ansible.builtin.fail:
+        msg: "Service '{{ service_name }}' not found. Available: {{ services.keys() | list }}"
+      when: service_name != 'all' and service_name not in services
+
+    - name: Display backup result
+      ansible.builtin.debug:
+        msg: "Backup completed for {{ service_name }}"

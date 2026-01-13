@@ -1,0 +1,84 @@
+---
+# Backup task - included by playbooks
+# Required vars: service_name, service, backup_tag (optional)
+
+- name: Set backup timestamp
+  ansible.builtin.set_fact:
+    backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+- name: Create backup staging directory
+  ansible.builtin.file:
+    path: "{{ backup_base_path }}/staging/{{ service_name }}"
+    state: directory
+    mode: "0755"
+
+# Handle bind mount volumes - direct copy
+- name: Backup bind mount volumes
+  ansible.builtin.copy:
+    src: "{{ service.path }}/{{ item.source | regex_replace('^\\./', '') }}/"
+    dest: "{{ backup_base_path }}/staging/{{ service_name }}/{{ item.backup_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ service.volumes | selectattr('type', 'equalto', 'bind') | list }}"
+  when: service.volumes is defined
+
+# Handle named Docker volumes - use container to access
+- name: Create staging dirs for named volumes
+  ansible.builtin.file:
+    path: "{{ backup_base_path }}/staging/{{ service_name }}/{{ item.backup_path }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ service.volumes | selectattr('type', 'equalto', 'named') | list }}"
+  when: service.volumes is defined
+
+- name: Export named volumes to staging
+  community.docker.docker_container:
+    name: "backup-{{ item.name | replace('_', '-') }}"
+    image: alpine
+    command: "sh -c 'cp -a /volume/* /backup/ 2>/dev/null || true'"
+    volumes:
+      - "{{ item.name }}:/volume:ro"
+      - "{{ backup_base_path }}/staging/{{ service_name }}/{{ item.backup_path }}:/backup"
+    state: started
+    detach: false
+    auto_remove: true
+  loop: "{{ service.volumes | selectattr('type', 'equalto', 'named') | list }}"
+  when: service.volumes is defined
+
+# Upload to S3 with restic
+- name: Backup to S3 with restic
+  ansible.builtin.command:
+    cmd: >
+      restic backup
+      --tag {{ service_name }}
+      --tag {{ backup_tag | default('manual') }}
+      {{ backup_base_path }}/staging/{{ service_name }}
+  environment:
+    RESTIC_REPOSITORY: "{{ restic_repository }}"
+    RESTIC_PASSWORD: "{{ restic_password }}"
+    AWS_ACCESS_KEY_ID: "{{ s3_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ s3_secret_key }}"
+  register: restic_backup
+  changed_when: "'Added to the repository' in restic_backup.stdout"
+
+- name: Apply retention policy
+  ansible.builtin.command:
+    cmd: >
+      restic forget
+      --tag {{ service_name }}
+      --keep-last {{ restic_keep_last }}
+      --keep-daily {{ restic_keep_daily }}
+      --keep-weekly {{ restic_keep_weekly }}
+      --keep-monthly {{ restic_keep_monthly }}
+      --prune
+  environment:
+    RESTIC_REPOSITORY: "{{ restic_repository }}"
+    RESTIC_PASSWORD: "{{ restic_password }}"
+    AWS_ACCESS_KEY_ID: "{{ s3_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ s3_secret_key }}"
+  changed_when: false
+
+- name: Cleanup staging directory
+  ansible.builtin.file:
+    path: "{{ backup_base_path }}/staging/{{ service_name }}"
+    state: absent

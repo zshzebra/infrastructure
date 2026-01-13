@@ -1,0 +1,68 @@
+---
+- name: Delete a service
+  hosts: docker_hosts
+  become: true
+
+  vars:
+    backup_before_delete: true
+    delete_volumes: false
+
+  tasks:
+    - name: Validate service_name is provided
+      ansible.builtin.fail:
+        msg: "service_name is required. Usage: ansible-playbook delete-service.yml -e service_name=myservice"
+      when: service_name is not defined
+
+    - name: Validate service exists
+      ansible.builtin.fail:
+        msg: "Service '{{ service_name }}' not found in services configuration"
+      when: service_name not in services
+
+    - name: Set service facts
+      ansible.builtin.set_fact:
+        service: "{{ services[service_name] }}"
+
+    - name: Confirm deletion
+      ansible.builtin.pause:
+        prompt: "You are about to delete {{ service_name }}. Type 'yes' to confirm"
+      register: confirm
+      when: not (auto_confirm | default(false))
+
+    - name: Check confirmation
+      ansible.builtin.fail:
+        msg: "Deletion cancelled"
+      when:
+        - not (auto_confirm | default(false))
+        - confirm.user_input != 'yes'
+
+    - name: Pre-deletion backup
+      ansible.builtin.include_tasks: ../roles/service/tasks/backup.yml
+      vars:
+        backup_tag: "pre-delete-{{ ansible_date_time.iso8601_basic_short }}"
+      when: backup_before_delete
+
+    - name: Stop and remove service containers
+      community.docker.docker_compose_v2:
+        project_src: "{{ service.path }}"
+        state: absent
+        remove_orphans: true
+
+    - name: Remove named volumes
+      community.docker.docker_volume:
+        name: "{{ item.name }}"
+        state: absent
+      loop: "{{ service.volumes | selectattr('type', 'equalto', 'named') | list }}"
+      when: delete_volumes and service.volumes is defined
+
+    - name: Archive service directory
+      community.general.archive:
+        path: "{{ service.path }}"
+        dest: "{{ backup_base_path }}/deleted-{{ service_name }}-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+        remove: true
+
+    - name: Display deletion result
+      ansible.builtin.debug:
+        msg: |
+          Service {{ service_name }} has been deleted.
+          Archive: {{ backup_base_path }}/deleted-{{ service_name }}-{{ ansible_date_time.iso8601_basic_short }}.tar.gz
+          Named volumes {{ 'removed' if delete_volumes else 'preserved' }}.

@@ -1,0 +1,36 @@
+# Hetzner Cloud
+hetzner_api_token = "your-hetzner-api-token"
+
+# Server Configuration
+server_name     = "docker-services"
+server_type     = "cx22"           # 2 vCPU, 4GB RAM
+server_location = "fsn1"           # Falkenstein, Germany
+server_image    = "rocky-9"
+
+# SSH Key
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# Docker Data Volume
+volume_size = 40 # GB
+
+# Linode
+linode_api_token     = "your-linode-api-token"
+backup_bucket_name   = "docker-backups"
+backup_bucket_region = "us-east-1" # Newark
+
+# Cloudflare
+cloudflare_api_token   = "your-cloudflare-api-token"
+cloudflare_account_id  = "your-cloudflare-account-id"
+cloudflare_zone_id     = "your-cloudflare-zone-id"
+cloudflare_zone        = "zshzebra.xyz"
+
+# Service definitions (optional - defaults are set in variables.tf)
+# services = {
+#   vaultwarden = { subdomain = "vw", port = 80 }
+#   openwebui   = { subdomain = "openwebui", port = 8080 }
+#   calibre-web = { subdomain = "calibre", port = 8083 }
+# }
+
+# Environment is determined by terraform workspace:
+# - terraform workspace new dev    -> dev-* resources, *.dev.zshzebra.xyz
+# - terraform workspace select prod -> no prefix, *.zshzebra.xyz

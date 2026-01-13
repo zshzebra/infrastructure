@@ -1,0 +1,56 @@
+---
+- name: Restore service from S3 backup
+  hosts: docker_hosts
+  become: true
+
+  vars:
+    snapshot_id: "latest"
+
+  tasks:
+    - name: Validate service_name is provided
+      ansible.builtin.fail:
+        msg: "service_name is required. Usage: ansible-playbook restore-service.yml -e service_name=vaultwarden [-e snapshot_id=abc123]"
+      when: service_name is not defined
+
+    - name: Validate service exists
+      ansible.builtin.fail:
+        msg: "Service '{{ service_name }}' not found in services configuration"
+      when: service_name not in services
+
+    - name: Set service facts
+      ansible.builtin.set_fact:
+        service: "{{ services[service_name] }}"
+
+    - name: List available snapshots
+      ansible.builtin.command:
+        cmd: restic snapshots --tag {{ service_name }} --json
+      environment:
+        RESTIC_REPOSITORY: "{{ restic_repository }}"
+        RESTIC_PASSWORD: "{{ restic_password }}"
+        AWS_ACCESS_KEY_ID: "{{ s3_access_key }}"
+        AWS_SECRET_ACCESS_KEY: "{{ s3_secret_key }}"
+      register: snapshots_result
+      changed_when: false
+
+    - name: Display available snapshots
+      ansible.builtin.debug:
+        msg: "Available snapshots for {{ service_name }}: {{ snapshots_result.stdout | from_json | map(attribute='short_id') | list }}"
+
+    - name: Stop service if running
+      community.docker.docker_compose_v2:
+        project_src: "{{ service.path }}"
+        state: absent
+      ignore_errors: true
+
+    - name: Restore from backup
+      ansible.builtin.include_tasks: ../roles/service/tasks/restore.yml
+
+    - name: Deploy service with restored data
+      ansible.builtin.include_tasks: ../roles/service/tasks/deploy.yml
+
+    - name: Run health check
+      ansible.builtin.include_tasks: ../roles/service/tasks/health-check.yml
+
+    - name: Display restore result
+      ansible.builtin.debug:
+        msg: "Service {{ service_name }} restored successfully from snapshot {{ snapshot_id }}"

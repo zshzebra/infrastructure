@@ -1,0 +1,53 @@
+---
+- name: Check if restic is installed
+  ansible.builtin.command: restic version
+  register: restic_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install restic
+  when: restic_installed.rc != 0
+  block:
+    - name: Download restic binary
+      ansible.builtin.get_url:
+        url: "https://github.com/restic/restic/releases/download/v0.17.3/restic_0.17.3_linux_amd64.bz2"
+        dest: /tmp/restic.bz2
+        mode: "0644"
+
+    - name: Extract restic binary
+      ansible.builtin.command:
+        cmd: bzip2 -d /tmp/restic.bz2
+      args:
+        creates: /tmp/restic
+
+    - name: Install restic to /usr/local/bin
+      ansible.builtin.copy:
+        src: /tmp/restic
+        dest: /usr/local/bin/restic
+        mode: "0755"
+        remote_src: true
+
+    - name: Cleanup temp file
+      ansible.builtin.file:
+        path: /tmp/restic
+        state: absent
+
+- name: Create restic environment file
+  ansible.builtin.template:
+    src: restic-env.sh.j2
+    dest: /etc/restic-env.sh
+    mode: "0600"
+
+- name: Initialize restic repository
+  ansible.builtin.command:
+    cmd: restic init
+  environment:
+    RESTIC_REPOSITORY: "{{ restic_repository }}"
+    RESTIC_PASSWORD: "{{ restic_password }}"
+    AWS_ACCESS_KEY_ID: "{{ s3_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ s3_secret_key }}"
+  register: restic_init
+  changed_when: "'created restic repository' in restic_init.stdout"
+  failed_when:
+    - restic_init.rc != 0
+    - "'already initialized' not in restic_init.stderr"

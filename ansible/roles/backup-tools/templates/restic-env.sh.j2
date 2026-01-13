@@ -1,0 +1,8 @@
+#!/bin/bash
+# Restic environment variables
+# Source this file before running restic commands: source /etc/restic-env.sh
+
+export RESTIC_REPOSITORY="{{ restic_repository }}"
+export RESTIC_PASSWORD="{{ restic_password }}"
+export AWS_ACCESS_KEY_ID="{{ s3_access_key }}"
+export AWS_SECRET_ACCESS_KEY="{{ s3_secret_key }}"

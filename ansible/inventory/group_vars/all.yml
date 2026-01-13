@@ -1,0 +1,86 @@
+---
+# Load Terraform outputs
+# Run: cd ../terraform && terraform output -json > ../ansible/terraform_outputs.json
+terraform_outputs: "{{ lookup('file', playbook_dir + '/../terraform_outputs.json') | from_json }}"
+
+# Docker storage configuration (from Terraform)
+docker_volume_device: "{{ terraform_outputs.volume_linux_device.value }}"
+docker_data_root: /mnt/docker
+
+# Base paths on the server
+services_base_path: /opt/services
+backup_base_path: /opt/backups
+backup_retention_days: 30
+
+# S3 Configuration (from Terraform)
+s3_endpoint: "{{ terraform_outputs.s3_endpoint.value }}"
+s3_bucket: "{{ terraform_outputs.s3_bucket.value }}"
+s3_access_key: "{{ terraform_outputs.s3_access_key.value }}"
+s3_secret_key: "{{ terraform_outputs.s3_secret_key.value }}"
+
+# Tunnel tokens and hostnames (from Terraform)
+tunnel_tokens: "{{ terraform_outputs.tunnel_tokens.value }}"
+tunnel_hostnames: "{{ terraform_outputs.tunnel_hostnames.value }}"
+
+# Restic configuration
+restic_repository: "s3:{{ s3_endpoint }}/{{ s3_bucket }}"
+restic_password: "{{ terraform_outputs.restic_password.value }}"
+restic_keep_last: 10
+restic_keep_daily: 7
+restic_keep_weekly: 4
+restic_keep_monthly: 6
+
+# Service definitions
+# tunnel_tokens and tunnel_hostnames come from Terraform outputs
+services:
+  openwebui:
+    name: openwebui
+    path: "{{ services_base_path }}/openwebui"
+    compose_file: docker-compose.yml
+    volumes:
+      - type: named
+        name: openwebui_open-webui
+        container_path: /app/backend/data
+        backup_path: openwebui-data
+    health_check:
+      type: http
+      timeout: 300
+
+  vaultwarden:
+    name: vaultwarden
+    path: "{{ services_base_path }}/vaultwarden"
+    compose_file: docker-compose.yml
+    volumes:
+      - type: bind
+        source: ./vw-data
+        container_path: /data
+        backup_path: vw-data
+    health_check:
+      type: http
+      timeout: 300
+    critical: true  # Extra backup caution for password manager
+
+  calibre-web:
+    name: calibre-web
+    path: "{{ services_base_path }}/calibre-web"
+    compose_file: docker-compose.yml
+    volumes:
+      - type: bind
+        source: ./config
+        container_path: /config
+        backup_path: config
+      - type: bind
+        source: ./data/library
+        container_path: /calibre-library
+        backup_path: library
+      - type: bind
+        source: ./data/ingest
+        container_path: /cwa-book-ingest
+        backup_path: ingest
+      - type: bind
+        source: ./plugins
+        container_path: /config/.config/calibre/plugins
+        backup_path: plugins
+    health_check:
+      type: http
+      timeout: 300

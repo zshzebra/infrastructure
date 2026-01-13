@@ -1,0 +1,58 @@
+---
+- name: Update a single service
+  hosts: docker_hosts
+  become: true
+
+  vars:
+    skip_backup: false
+
+  tasks:
+    - name: Validate service_name is provided
+      ansible.builtin.fail:
+        msg: "service_name is required. Usage: ansible-playbook update-service.yml -e service_name=vaultwarden"
+      when: service_name is not defined
+
+    - name: Validate service exists
+      ansible.builtin.fail:
+        msg: "Service '{{ service_name }}' not found in services configuration"
+      when: service_name not in services
+
+    - name: Set service facts
+      ansible.builtin.set_fact:
+        service: "{{ services[service_name] }}"
+
+    # Step 1: Backup before update
+    - name: Run pre-update backup
+      ansible.builtin.include_tasks: ../roles/service/tasks/backup.yml
+      vars:
+        backup_tag: "pre-update-{{ ansible_date_time.iso8601_basic_short }}"
+      when: not skip_backup
+
+    # Step 2: Stop service
+    - name: Stop service
+      community.docker.docker_compose_v2:
+        project_src: "{{ service.path }}"
+        state: absent
+        remove_orphans: true
+
+    # Step 3: Pull new images
+    - name: Pull latest images
+      community.docker.docker_compose_v2:
+        project_src: "{{ service.path }}"
+        pull: always
+        state: present
+
+    # Step 4: Start service
+    - name: Start service
+      community.docker.docker_compose_v2:
+        project_src: "{{ service.path }}"
+        state: present
+      register: compose_up
+
+    # Step 5: Health check
+    - name: Run health check
+      ansible.builtin.include_tasks: ../roles/service/tasks/health-check.yml
+
+    - name: Display update result
+      ansible.builtin.debug:
+        msg: "Service {{ service_name }} updated successfully"

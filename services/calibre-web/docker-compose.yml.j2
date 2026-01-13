@@ -1,0 +1,38 @@
+services:
+  calibre-web:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibre-web
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Australia/Sydney
+      - NETWORK_SHARE_MODE=false
+      - CWA_PORT_OVERRIDE=8083
+    volumes:
+      - ./config:/config
+      - ./data/ingest:/cwa-book-ingest
+      - ./data/library:/calibre-library
+      - ./plugins:/config/.config/calibre/plugins
+    restart: unless-stopped
+    networks:
+      - calibre-web-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: calibre-web-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN={{ tunnel_token }}
+    networks:
+      - calibre-web-network
+
+networks:
+  calibre-web-network:
+    driver: bridge

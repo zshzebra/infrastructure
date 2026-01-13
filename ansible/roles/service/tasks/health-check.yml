@@ -1,0 +1,36 @@
+---
+# Health check task - included by playbooks
+# Required vars: service_name, service
+# Uses Docker's built-in health status (ports not exposed to host, traffic via tunnel)
+
+- name: Wait for container to be healthy
+  ansible.builtin.command:
+    cmd: docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ service_name }}
+  register: health_result
+  retries: "{{ (service.health_check.timeout | default(60)) // 5 }}"
+  delay: 5
+  until: health_result.stdout == 'healthy'
+  changed_when: false
+  failed_when: false
+  when: service.health_check.type == 'http'
+
+- name: Check container is running (fallback)
+  ansible.builtin.command:
+    cmd: docker inspect --format='{{ '{{' }}.State.Running{{ '}}' }}' {{ service_name }}
+  register: running_result
+  changed_when: false
+  when:
+    - service.health_check.type == 'http'
+    - health_result.stdout is not defined or health_result.stdout != 'healthy'
+
+- name: Fail if container not healthy or running
+  ansible.builtin.fail:
+    msg: "Container {{ service_name }} is not healthy. Status: {{ health_result.stdout | default('unknown') }}"
+  when:
+    - service.health_check.type == 'http'
+    - health_result.stdout | default('') != 'healthy'
+    - running_result.stdout | default('false') != 'true'
+
+- name: Display health check result
+  ansible.builtin.debug:
+    msg: "Service {{ service_name }} is healthy (status: {{ health_result.stdout | default('running') }})"

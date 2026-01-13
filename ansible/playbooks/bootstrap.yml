@@ -1,0 +1,20 @@
+---
+- name: Bootstrap server
+  hosts: docker_hosts
+  become: true
+
+  roles:
+    - common
+    - volume      # Mount Hetzner Volume first
+    - docker      # Then install Docker (uses volume for data-root)
+    - backup-tools
+
+  tasks:
+    - name: Display bootstrap completion message
+      ansible.builtin.debug:
+        msg: |
+          Server bootstrap complete!
+          - Hetzner Volume mounted at {{ docker_data_root }}
+          - Docker installed with data-root on external volume
+          - Restic installed and repository initialized
+          - Service directories created

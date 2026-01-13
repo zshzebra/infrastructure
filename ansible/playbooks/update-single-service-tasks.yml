@@ -1,0 +1,23 @@
+---
+# Helper tasks for update-all.yml
+# Required vars: service_name, service, tunnel_tokens
+
+- name: "{{ service_name }}: Stop service"
+  community.docker.docker_compose_v2:
+    project_src: "{{ service.path }}"
+    state: absent
+    remove_orphans: true
+
+- name: "{{ service_name }}: Pull latest images"
+  community.docker.docker_compose_v2:
+    project_src: "{{ service.path }}"
+    pull: always
+    state: present
+
+- name: "{{ service_name }}: Start service"
+  community.docker.docker_compose_v2:
+    project_src: "{{ service.path }}"
+    state: present
+
+- name: "{{ service_name }}: Health check"
+  ansible.builtin.include_tasks: ../roles/service/tasks/health-check.yml
