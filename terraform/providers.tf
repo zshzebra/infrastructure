@@ -4,7 +4,7 @@ terraform {
   cloud {
     organization = "zshzebra"
     workspaces {
-      name = "infrastructure"
+      tags = ["infrastructure"]
     }
   }
 
@@ -30,6 +30,16 @@ terraform {
 
 # Generate restic backup password (persists in state)
 resource "random_password" "restic" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "litellm_master_key" {
+  length  = 64
+  special = false
+}
+
+resource "random_password" "litellm_db_password" {
   length  = 32
   special = false
 }

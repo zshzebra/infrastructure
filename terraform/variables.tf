@@ -83,6 +83,13 @@ variable "cloudflare_zone" {
   default     = "zshzebra.xyz"
 }
 
+# LiteLLM / AI provider keys
+variable "anthropic_api_key" {
+  description = "Anthropic API key for LiteLLM proxy"
+  type        = string
+  sensitive   = true
+}
+
 # Service definitions for tunnels
 variable "services" {
   description = "Map of services to deploy with their subdomains and ports"

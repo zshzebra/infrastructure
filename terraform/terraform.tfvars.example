@@ -24,6 +24,9 @@ cloudflare_account_id  = "your-cloudflare-account-id"
 cloudflare_zone_id     = "your-cloudflare-zone-id"
 cloudflare_zone        = "zshzebra.xyz"
 
+# AI Provider Keys
+anthropic_api_key = "your-anthropic-api-key"
+
 # Service definitions (optional - defaults are set in variables.tf)
 # services = {
 #   vaultwarden = { subdomain = "vw", port = 80 }

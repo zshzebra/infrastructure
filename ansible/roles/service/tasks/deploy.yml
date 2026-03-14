@@ -24,6 +24,13 @@
   vars:
     tunnel_token: "{{ tunnel_tokens[service_name] }}"
 
+- name: Template extra config files
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../services/{{ service_name }}/{{ item.src }}"
+    dest: "{{ service.path }}/{{ item.dest }}"
+    mode: "0644"
+  loop: "{{ service.extra_templates | default([]) }}"
+
 - name: Pull images
   community.docker.docker_compose_v2:
     project_src: "{{ service.path }}"
@@ -36,3 +43,7 @@
     project_src: "{{ service.path }}"
     state: present
   register: compose_up
+
+- name: Setup LiteLLM virtual key
+  ansible.builtin.include_tasks: litellm-setup.yml
+  when: service_name == 'openwebui'

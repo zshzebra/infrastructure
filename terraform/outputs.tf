@@ -85,6 +85,25 @@ output "restic_password" {
   sensitive   = true
 }
 
+# LiteLLM secrets
+output "litellm_master_key" {
+  description = "Generated master key for LiteLLM admin access"
+  value       = "sk-${random_password.litellm_master_key.result}"
+  sensitive   = true
+}
+
+output "litellm_db_password" {
+  description = "Generated password for LiteLLM Postgres database"
+  value       = random_password.litellm_db_password.result
+  sensitive   = true
+}
+
+output "anthropic_api_key" {
+  description = "Anthropic API key (passthrough from variable)"
+  value       = var.anthropic_api_key
+  sensitive   = true
+}
+
 # Helper output for Ansible inventory
 output "ansible_host_entry" {
   description = "Entry for Ansible inventory"

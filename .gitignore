@@ -9,6 +9,7 @@ terraform/.terraform.lock.hcl
 ansible/.vault_pass
 ansible/.ansible_cache/
 ansible/inventory/group_vars/vault.yml
+ansible/terraform_outputs.json
 *.retry
 
 # Secrets

@@ -1,0 +1,91 @@
+---
+# Post-deploy setup for LiteLLM: generate a virtual key for OpenWebUI
+# Required vars: service, litellm_master_key
+
+- name: Wait for LiteLLM to be healthy
+  ansible.builtin.command:
+    cmd: docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' openwebui-litellm-1
+  register: litellm_health
+  retries: 60
+  delay: 5
+  until: litellm_health.stdout == 'healthy'
+  changed_when: false
+
+- name: Check for saved virtual key
+  ansible.builtin.slurp:
+    src: "{{ service.path }}/.litellm_virtual_key"
+  register: saved_key
+  failed_when: false
+
+- name: Load saved virtual key
+  ansible.builtin.set_fact:
+    litellm_virtual_key: "{{ saved_key.content | b64decode | trim }}"
+  when: saved_key is succeeded and saved_key.content is defined
+
+- name: Generate virtual key for OpenWebUI
+  ansible.builtin.uri:
+    url: http://localhost:4000/key/generate
+    method: POST
+    headers:
+      Authorization: "Bearer {{ litellm_master_key }}"
+    body_format: json
+    body:
+      key_alias: "openwebui"
+    status_code: [200, 400]
+  register: generate_result
+  when: litellm_virtual_key is not defined or litellm_virtual_key | length == 0
+
+- name: Delete conflicting key and regenerate
+  when: >-
+    generate_result is not skipped
+    and generate_result.status == 400
+  block:
+    - name: Delete existing openwebui key
+      ansible.builtin.uri:
+        url: http://localhost:4000/key/delete
+        method: POST
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+        body_format: json
+        body:
+          key_aliases: ["openwebui"]
+        status_code: 200
+
+    - name: Regenerate virtual key
+      ansible.builtin.uri:
+        url: http://localhost:4000/key/generate
+        method: POST
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+        body_format: json
+        body:
+          key_alias: "openwebui"
+        status_code: 200
+      register: generate_result
+
+- name: Set virtual key fact
+  ansible.builtin.set_fact:
+    litellm_virtual_key: "{{ generate_result.json.key }}"
+  when: generate_result is not skipped and generate_result.json.key is defined
+
+- name: Save virtual key to disk
+  ansible.builtin.copy:
+    content: "{{ litellm_virtual_key }}"
+    dest: "{{ service.path }}/.litellm_virtual_key"
+    mode: "0600"
+  when: litellm_virtual_key is defined
+
+- name: Re-template docker-compose with virtual key
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../services/openwebui/docker-compose.yml.j2"
+    dest: "{{ service.path }}/docker-compose.yml"
+    mode: "0600"
+  vars:
+    tunnel_token: "{{ tunnel_tokens['openwebui'] }}"
+
+- name: Restart OpenWebUI with API key
+  community.docker.docker_compose_v2:
+    project_src: "{{ service.path }}"
+    services:
+      - openwebui
+    state: restarted

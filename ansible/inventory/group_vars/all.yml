@@ -22,6 +22,11 @@ s3_secret_key: "{{ terraform_outputs.s3_secret_key.value }}"
 tunnel_tokens: "{{ terraform_outputs.tunnel_tokens.value }}"
 tunnel_hostnames: "{{ terraform_outputs.tunnel_hostnames.value }}"
 
+# LiteLLM configuration (from Terraform)
+litellm_master_key: "{{ terraform_outputs.litellm_master_key.value }}"
+litellm_db_password: "{{ terraform_outputs.litellm_db_password.value }}"
+anthropic_api_key: "{{ terraform_outputs.anthropic_api_key.value }}"
+
 # Restic configuration
 restic_repository: "s3:{{ s3_endpoint }}/{{ s3_bucket }}"
 restic_password: "{{ terraform_outputs.restic_password.value }}"
@@ -37,11 +42,24 @@ services:
     name: openwebui
     path: "{{ services_base_path }}/openwebui"
     compose_file: docker-compose.yml
+    extra_templates:
+      - src: litellm_config.yaml.j2
+        dest: litellm_config.yaml
+      - src: prometheus.yml.j2
+        dest: prometheus.yml
     volumes:
       - type: named
         name: openwebui_open-webui
         container_path: /app/backend/data
         backup_path: openwebui-data
+      - type: named
+        name: litellm_postgres_data
+        container_path: /var/lib/postgresql/data
+        backup_path: litellm-postgres-data
+      - type: named
+        name: openwebui_prometheus_data
+        container_path: /prometheus
+        backup_path: prometheus-data
     health_check:
       type: http
       timeout: 300
