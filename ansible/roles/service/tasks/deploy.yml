@@ -13,6 +13,8 @@
     path: "{{ service.path }}/{{ item.source | regex_replace('^\\./', '') }}"
     state: directory
     mode: "0755"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
   loop: "{{ service.volumes | selectattr('type', 'equalto', 'bind') | list }}"
   when: service.volumes is defined
 

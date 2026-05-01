@@ -44,6 +44,11 @@ resource "random_password" "litellm_db_password" {
   special = false
 }
 
+resource "random_password" "vikunja_service_secret" {
+  length  = 64
+  special = false
+}
+
 provider "hcloud" {
   token = var.hetzner_api_token
 }

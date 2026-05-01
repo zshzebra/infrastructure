@@ -6,9 +6,9 @@ variable "hetzner_api_token" {
 }
 
 variable "server_name" {
-  description = "Name for the Hetzner VPS"
+  description = "Base name for the Hetzner VPS (prefixed with environment)"
   type        = string
-  default     = "docker-services"
+  default     = "services"
 }
 
 variable "server_type" {
@@ -110,6 +110,10 @@ variable "services" {
       subdomain = "calibre"
       port      = 8083
     }
+    vikunja = {
+      subdomain = "vikunja"
+      port      = 3456
+    }
   }
 }
 
@@ -120,4 +124,7 @@ locals {
   is_prod    = local.env == "default" || local.env == "prod"
   env_prefix = local.is_prod ? "" : "${local.env}-"
   env_suffix = local.is_prod ? "" : "-${local.env}"
+
+  # Server resources are always env-prefixed so they're unambiguous on the dashboard
+  server_full_name = "${local.env}-${var.server_name}"
 }

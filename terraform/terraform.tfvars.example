@@ -2,7 +2,7 @@
 hetzner_api_token = "your-hetzner-api-token"
 
 # Server Configuration
-server_name     = "docker-services"
+server_name     = "services"
 server_type     = "cx22"           # 2 vCPU, 4GB RAM
 server_location = "fsn1"           # Falkenstein, Germany
 server_image    = "rocky-9"

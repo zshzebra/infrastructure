@@ -27,6 +27,9 @@ litellm_master_key: "{{ terraform_outputs.litellm_master_key.value }}"
 litellm_db_password: "{{ terraform_outputs.litellm_db_password.value }}"
 anthropic_api_key: "{{ terraform_outputs.anthropic_api_key.value }}"
 
+# Vikunja configuration (from Terraform)
+vikunja_service_secret: "{{ terraform_outputs.vikunja_service_secret.value }}"
+
 # Restic configuration
 restic_repository: "s3:{{ s3_endpoint }}/{{ s3_bucket }}"
 restic_password: "{{ terraform_outputs.restic_password.value }}"
@@ -102,3 +105,25 @@ services:
     health_check:
       type: http
       timeout: 300
+
+  vikunja:
+    name: vikunja
+    path: "{{ services_base_path }}/vikunja"
+    compose_file: docker-compose.yml
+    volumes:
+      - type: bind
+        source: ./files
+        container_path: /app/vikunja/files
+        backup_path: files
+        owner: 1000
+        group: 1000
+      - type: bind
+        source: ./db
+        container_path: /db
+        backup_path: db
+        owner: 1000
+        group: 1000
+    health_check:
+      type: http
+      timeout: 300
+    critical: true

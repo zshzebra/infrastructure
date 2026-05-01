@@ -1,0 +1,35 @@
+services:
+  vikunja:
+    image: vikunja/vikunja:2.3.0
+    container_name: vikunja
+    restart: unless-stopped
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: "https://{{ tunnel_hostnames['vikunja'] }}/"
+      VIKUNJA_SERVICE_SECRET: "{{ vikunja_service_secret }}"
+      VIKUNJA_DATABASE_PATH: /db/vikunja.db
+    volumes:
+      - ./files:/app/vikunja/files
+      - ./db:/db
+      - ./config.yml:/etc/vikunja/config.yml
+    networks:
+      - vikunja-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3456/api/v1/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: vikunja-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN={{ tunnel_token }}
+    networks:
+      - vikunja-network
+
+networks:
+  vikunja-network:
+    driver: bridge

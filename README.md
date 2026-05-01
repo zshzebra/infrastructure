@@ -15,6 +15,7 @@ Terraform + Ansible infrastructure for self-hosted services with Cloudflare Tunn
 | Vaultwarden | vw-dev.zshzebra.xyz | vw.zshzebra.xyz |
 | Open WebUI | openwebui-dev.zshzebra.xyz | openwebui.zshzebra.xyz |
 | Calibre-Web | calibre-dev.zshzebra.xyz | calibre.zshzebra.xyz |
+| Vikunja | vikunja-dev.zshzebra.xyz | vikunja.zshzebra.xyz |
 
 ## Prerequisites
 
@@ -74,7 +75,7 @@ ansible-playbook playbooks/bootstrap.yml
 ansible-playbook playbooks/deploy-service.yml -e service_name=vaultwarden
 
 # Deploy all services
-for svc in vaultwarden openwebui calibre-web; do
+for svc in vaultwarden openwebui calibre-web vikunja; do
   ansible-playbook playbooks/deploy-service.yml -e service_name=$svc
 done
 ```

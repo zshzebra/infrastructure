@@ -104,8 +104,15 @@ output "anthropic_api_key" {
   sensitive   = true
 }
 
+# Vikunja secrets
+output "vikunja_service_secret" {
+  description = "Generated service secret for Vikunja JWT signing"
+  value       = random_password.vikunja_service_secret.result
+  sensitive   = true
+}
+
 # Helper output for Ansible inventory
 output "ansible_host_entry" {
   description = "Entry for Ansible inventory"
-  value       = "${local.env_prefix}${var.server_name} ansible_host=${hcloud_server.main.ipv4_address}"
+  value       = "${local.server_full_name} ansible_host=${hcloud_server.main.ipv4_address}"
 }

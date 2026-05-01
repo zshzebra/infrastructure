@@ -1,17 +1,16 @@
-# SSH Key - shared across all environments (same key, no env prefix)
+# SSH Key - shared across all environments (same key)
 resource "hcloud_ssh_key" "main" {
-  name       = "${var.server_name}-key"
+  name       = "infrastructure-key"
   public_key = file(var.ssh_public_key_path)
 
   lifecycle {
-    # Prevent destroy if key is used by other environments
     prevent_destroy = false
   }
 }
 
 # Firewall - Minimal since Cloudflare tunnels handle ingress
 resource "hcloud_firewall" "main" {
-  name = "${local.env_prefix}${var.server_name}-firewall"
+  name = "${local.server_full_name}-firewall"
 
   # Allow SSH
   rule {
@@ -52,7 +51,7 @@ resource "hcloud_firewall" "main" {
 
 # Server
 resource "hcloud_server" "main" {
-  name         = "${local.env_prefix}${var.server_name}"
+  name         = local.server_full_name
   image        = var.server_image
   server_type  = var.server_type
   location     = var.server_location
@@ -73,11 +72,17 @@ resource "hcloud_server" "main" {
       - python3
       - python3-pip
     EOF
+
+  # ssh_keys is only consulted at create time (key ends up in authorized_keys via cloud-init).
+  # Ignore drift so SSH key resource churn does not force-replace the running server.
+  lifecycle {
+    ignore_changes = [ssh_keys]
+  }
 }
 
 # Volume for Docker data
 resource "hcloud_volume" "docker_data" {
-  name     = "${local.env_prefix}${var.server_name}-docker-data"
+  name     = "${local.server_full_name}-docker-data"
   size     = var.volume_size
   location = var.server_location
   format   = "ext4"
