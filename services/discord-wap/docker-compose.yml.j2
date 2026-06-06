@@ -1,0 +1,29 @@
+services:
+  discord:
+    image: pyscripter99/discord-wap:latest
+    container_name: discordwap
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      CDN_PROXY: "http://cdn.gtrxac.fi"
+    networks:
+      - discordwap-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/wap"]
+      interval: 3s
+      timeout: 10s
+      retries: 3
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: discordwap-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN={{ tunnel_token }}
+    networks:
+      - discordwap-network
+
+networks:
+  discordwap-network:
+    driver: bridge

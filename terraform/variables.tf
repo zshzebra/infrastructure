@@ -114,6 +114,10 @@ variable "services" {
       subdomain = "vikunja"
       port      = 3456
     }
+    discord-wap = {
+      subdomain = "discord-wap"
+      port      = 8080
+    }
   }
 }
 
