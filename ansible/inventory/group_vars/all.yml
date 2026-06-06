@@ -127,3 +127,10 @@ services:
       type: http
       timeout: 300
     critical: true
+  discord-wap:
+    name: discord-wap
+    path: "{{ services_base_path }}/discord-wap"
+    compose_file: docker-compose.yml
+    health_check:
+      type: http
+      timeout: 300
