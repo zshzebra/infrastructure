@@ -110,6 +110,9 @@ services:
     name: vikunja
     path: "{{ services_base_path }}/vikunja"
     compose_file: docker-compose.yml
+    extra_templates:
+      - src: config.yml.j2
+        dest: config.yml
     volumes:
       - type: bind
         source: ./files
