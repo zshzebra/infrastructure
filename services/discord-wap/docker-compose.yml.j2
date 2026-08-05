@@ -9,8 +9,9 @@ services:
     networks:
       - discordwap-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/wap"]
-      interval: 3s
+      # Image has wget, not curl
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8080/wap"]
+      interval: 30s
       timeout: 10s
       retries: 3
 

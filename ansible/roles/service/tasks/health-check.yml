@@ -3,6 +3,16 @@
 # Required vars: service_name, service
 # Uses Docker's built-in health status (ports not exposed to host, traffic via tunnel)
 
+# Without this, a container that defines no healthcheck at all retries for the
+# full timeout before falling through to the "is it running" check below.
+- name: Detect whether container defines a healthcheck
+  ansible.builtin.command:
+    cmd: docker inspect --format='{{ '{{' }}if .State.Health{{ '}}' }}yes{{ '{{' }}else{{ '}}' }}no{{ '{{' }}end{{ '}}' }}' {{ service_name }}
+  register: has_healthcheck
+  changed_when: false
+  failed_when: false
+  when: service.health_check.type == 'http'
+
 - name: Wait for container to be healthy
   ansible.builtin.command:
     cmd: docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ service_name }}
@@ -12,7 +22,9 @@
   until: health_result.stdout == 'healthy'
   changed_when: false
   failed_when: false
-  when: service.health_check.type == 'http'
+  when:
+    - service.health_check.type == 'http'
+    - has_healthcheck.stdout | default('no') == 'yes'
 
 - name: Check container is running (fallback)
   ansible.builtin.command:
