@@ -1,6 +1,8 @@
 services:
   vikunja:
-    image: vikunja/vikunja:2.3.0
+    # PR go-vikunja/vikunja#2939, built from zshzebra/vikunja@finish-subprojects.
+    # Digest-pinned: the deploy role runs `pull: always`.
+    image: ghcr.io/zshzebra/vikunja:sha-13b0f4f4e685504bf81b5424255a8a0b7238df2f@sha256:8b69c3683039834081490d33bc3943c4fe5a05d9ebf8c2d0d3bfc880b946372d
     container_name: vikunja
     restart: unless-stopped
     environment:
@@ -14,7 +16,8 @@ services:
     networks:
       - vikunja-network
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3456/api/v1/info"]
+      # Distroless image: no shell, so use vikunja's own healthcheck subcommand.
+      test: ["CMD", "/app/vikunja/vikunja", "healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3
