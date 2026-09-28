@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: ^secrets/providers\.yaml$
+    age:
+      - age1h2l56zaq0m344qgthuuqwqpmpq4xs3c7f5u2w4vchcvtlynmkq7s9kgcpq
