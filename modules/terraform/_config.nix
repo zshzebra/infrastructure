@@ -1,3 +1,8 @@
+{ pkgs, tofuAge, ... }:
+let
+  ageRecipients = [ "age1h2l56zaq0m344qgthuuqwqpmpq4xs3c7f5u2w4vchcvtlynmkq7s9kgcpq" ];
+  tofuAgeBin = "${tofuAge}/bin/tofu-age-encryption";
+in
 {
   terraform.required_providers = {
     sops = {
@@ -15,6 +20,32 @@
     cloudflare = {
       source = "cloudflare/cloudflare";
       version = "~> 5";
+    };
+  };
+
+  terraform.encryption = {
+    method.external.age = {
+      encrypt_command = [
+        tofuAgeBin
+        "--encrypt"
+        "--recipient"
+        (pkgs.lib.concatStringsSep "," ageRecipients)
+      ];
+      decrypt_command = [
+        tofuAgeBin
+        "--decrypt"
+        "--identity"
+        "cmd:${pkgs.coreutils}/bin/cat $HOME/.config/sops/age/keys.txt"
+      ];
+    };
+
+    state = {
+      method = "method.external.age";
+      enforced = true;
+    };
+    plan = {
+      method = "method.external.age";
+      enforced = true;
     };
   };
 
