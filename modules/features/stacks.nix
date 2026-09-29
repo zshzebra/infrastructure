@@ -26,6 +26,10 @@
       containerType = types.submodule {
         options = {
           image = mkOption { type = types.str; };
+          imageStream = mkOption {
+            type = types.nullOr types.package;
+            default = null;
+          };
           environment = mkOption {
             type = types.attrsOf types.str;
             default = { };
@@ -104,7 +108,12 @@
               c,
             }:
             lib.nameValuePair "${stackName}-${cName}" {
-              inherit (c) image environment environmentFiles;
+              inherit (c)
+                image
+                imageStream
+                environment
+                environmentFiles
+                ;
               networks = [ stackName ];
               dependsOn = map (d: "${stackName}-${d}") c.dependsOn;
               volumes = lib.mapAttrsToList (
