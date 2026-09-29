@@ -38,12 +38,14 @@ in
     inputs.nixpkgs.lib.nixosSystem {
       modules = host.modules ++ [
         inputs.disko.nixosModules.disko
-        inputs.sops-nix.nixosModules.sops
         self.nixosModules.core
         self.nixosModules.homeManager
         self.nixosModules.userZshzebra
         self.nixosModules.userRoot
         self.nixosModules.stacks
+        self.nixosModules.sops
+        self.nixosModules.tailscale
+        self.nixosModules.backups
         {
           networking.hostName = name;
           nixpkgs.hostPlatform = host.system;
