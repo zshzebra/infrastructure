@@ -136,15 +136,17 @@
           ))
         ];
 
-        systemd.tmpfiles.rules = lib.concatMap (
-          {
-            stack,
-            cName,
-            c,
-            ...
-          }:
-          lib.mapAttrsToList (vName: _: "d ${stack.dataDir}/${cName}/${vName} 0750 root root -") c.volumes
-        ) allContainers;
+        systemd.tmpfiles.rules =
+          (lib.mapAttrsToList (_: stack: "d ${stack.dataDir} 0700 root root -") config.stacks)
+          ++ lib.concatMap (
+            {
+              stack,
+              cName,
+              c,
+              ...
+            }:
+            lib.mapAttrsToList (vName: _: "d ${stack.dataDir}/${cName}/${vName} - - - -") c.volumes
+          ) allContainers;
       };
     };
 }
