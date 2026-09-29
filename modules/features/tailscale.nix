@@ -2,7 +2,7 @@
   flake.nixosModules.tailscale =
     { config, ... }:
     {
-      sops.secrets.tailscale_authkey = { };
+      sops.secrets.tailscale_auth_key = { };
 
       services.tailscale = {
         enable = true;

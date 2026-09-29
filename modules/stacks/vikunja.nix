@@ -25,7 +25,7 @@
           POSTGRES_DB = "vikunja";
         };
         environmentFiles = [ config.sops.templates."vikunja-db.env".path ];
-        volumes.data.path = "/var/lib/postgresql/data";
+        volumes.data.path = "/var/lib/postgresql";
       };
 
       containers.app = {
