@@ -1,13 +1,15 @@
-{ self, inputs, ... }:
+{ self, ... }:
 {
-  flake.nixosConfigurations.vps = inputs.nixpkgs.lib.nixosSystem {
+  hosts.main = {
+    hetzner = {
+      type = "cpx22";
+      location = "sin";
+    };
+
     modules = [
-      self.nixosModules.core
-      self.nixosModules.tailscale
-      self.nixosModules.sops
-      self.nixosModules.vpsConfiguration
-      inputs.disko.nixosModules.disko
-      inputs.sops-nix.nixosModules.sops
+      ./_disko.nix
+      self.nixosModules.vikunja
+      { system.stateVersion = "26.05"; }
     ];
   };
 }

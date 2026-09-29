@@ -1,7 +1,14 @@
-{ pkgs, tofuAge, ... }:
+{
+  pkgs,
+  lib,
+  hosts,
+  tofuAge,
+  ...
+}:
 let
   ageRecipients = [ "age1h2l56zaq0m344qgthuuqwqpmpq4xs3c7f5u2w4vchcvtlynmkq7s9kgcpq" ];
   tofuAgeBin = "${tofuAge}/bin/tofu-age-encryption";
+  secret = key: "\${data.sops_file.secrets.data[\"${key}\"]}";
 in
 {
   terraform.required_providers = {
@@ -29,7 +36,7 @@ in
         tofuAgeBin
         "--encrypt"
         "--recipient"
-        (pkgs.lib.concatStringsSep "," ageRecipients)
+        (lib.concatStringsSep "," ageRecipients)
       ];
       decrypt_command = [
         tofuAgeBin
@@ -56,28 +63,34 @@ in
   };
 
   provider.hcloud = {
-    token = "\${data.sops_file.secrets.data[\"hcloud_token\"]}";
+    token = secret "hcloud_token";
   };
 
   provider.linode = {
-    token = "\${data.sops_file.secrets.data[\"linode_token\"]}";
+    token = secret "linode_token";
   };
 
   provider.cloudflare = {
-    api_token = "\${data.sops_file.secrets.data[\"cloudflare_token\"]}";
+    api_token = secret "cloudflare_token";
   };
 
-  resource.hcloud_server.main = {
-    image = "rocky-10";
-    name = "main";
-    server_type = "cpx22";
-    location = "sin";
-    # ssh_keys = [ "TODO" ];
+  resource.hcloud_ssh_key.install = {
+    name = "install";
+    public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINJmshD4Go+e+SL5Tv5p57BcMLxyg6UhwgC0zIN3hWGG zshzebra@host";
+
+  };
+
+  resource.hcloud_server = lib.mapAttrs (name: host: {
+    inherit name;
+    image = "debian-12";
+    server_type = host.hetzner.type;
+    location = host.hetzner.location;
+    ssh_keys = [ "\${hcloud_ssh_key.install.id}" ];
     public_net = {
       ipv4_enabled = true;
       ipv6_enabled = true;
     };
-  };
+  }) hosts;
 
   resource.linode_object_storage_bucket.backups = {
     label = "zshzebra-docker-backups-test";
