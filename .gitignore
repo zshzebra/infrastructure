@@ -1,4 +1,3 @@
 infra/.terraform/
-infra/*.tfstate*
 infra/config.tf.json
 result*
