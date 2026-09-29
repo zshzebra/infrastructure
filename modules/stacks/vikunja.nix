@@ -2,6 +2,7 @@
   flake.nixosModules.vikunja = { config, ... }: {
     sops.secrets.vikunja_db_password = { };
     sops.secrets.vikunja_jwt_secret = { };
+    sops.secrets.domain = { };
 
     sops.templates."vikunja-db.env" = {
       content = ''
@@ -12,7 +13,8 @@
     sops.templates."vikunja-app.env" = {
       content = ''
         VIKUNJA_DATABASE_PASSWORD=${config.sops.placeholder.vikunja_db_password}
-        VIKUNJA_SERVICE_JWTSECRET=${config.sops.placeholder.vikunja_jwt_secret}
+        VIKUNJA_SERVICE_SECRET=${config.sops.placeholder.vikunja_jwt_secret}
+        VIKUNJA_SERVICE_PUBLICURL=http://tasks.${config.sops.placeholder.domain}/
       '';
       restartUnits = [ "podman-vikunja-app.service" ];
     };

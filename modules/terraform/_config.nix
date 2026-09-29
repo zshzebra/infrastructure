@@ -3,6 +3,7 @@
   lib,
   hosts,
   tofuAge,
+  nixosConfigurations,
   ...
 }:
 let
@@ -15,6 +16,20 @@ let
     printf '%s\n' "$SOPS_AGE_KEY" > var/lib/sops-nix/key.txt
   '';
   nixosAnywhere = "github.com/nix-community/nixos-anywhere//terraform";
+  exposes = lib.concatMapAttrs (_: stack: stack.expose) nixosConfigurations.main.config.stacks;
+  svcAddr = name: cond: "\${[for a in tailscale_service.${name}.addrs : a if ${cond}][0]}";
+  hostSecrets = name: {
+    tailscale_auth_key = "tailscale_tailnet_key.${name}.key";
+    vikunja_db_password = "random_password.vikunja_db.result";
+    vikunja_jwt_secret = "random_password.vikunja_jwt.result";
+    restic_password = "random_password.restic.result";
+    restic_access_key = "linode_object_storage_key.backups.access_key";
+    restic_secret_key = "linode_object_storage_key.backups.secret_key";
+    restic_repository = "\"s3:https://\${linode_object_storage_bucket.backups.s3_endpoint}/\${linode_object_storage_bucket.backups.label}/${name}\"";
+    domain = "local.domain";
+  };
+  hclObject =
+    attrs: "{ ${lib.concatStringsSep ", " (lib.mapAttrsToList (k: v: "${k} = ${v}") attrs)} }";
 in
 {
   terraform.required_providers = {
@@ -73,6 +88,12 @@ in
     source_file = "../secrets/providers.yaml";
   };
 
+  data.cloudflare_zone.main = {
+    zone_id = secret "cloudflare_zone_id";
+  };
+
+  locals.domain = "\${data.cloudflare_zone.main.name}";
+
   provider.hcloud = {
     token = secret "hcloud_token";
   };
@@ -98,6 +119,48 @@ in
     tags = [ "tag:server" ];
   }) hosts;
 
+  resource.tailscale_service = lib.mapAttrs (name: _: {
+    name = "svc:${name}";
+    ports = [ "tcp:80" ];
+  }) exposes;
+
+  resource.tailscale_acl.policy = {
+    overwrite_existing_content = true;
+    acl = builtins.toJSON {
+      tagOwners."tag:server" = [ "autogroup:admin" ];
+
+      grants = [
+        {
+          src = [ "*" ];
+          dst = [ "*" ];
+          ip = [ "*" ];
+        }
+      ];
+
+      autoApprovers.services = lib.mapAttrs' (
+        name: _: lib.nameValuePair "svc:${name}" [ "tag:server" ]
+      ) exposes;
+    };
+  };
+
+  resource.cloudflare_dns_record = lib.concatMapAttrs (
+    name: _:
+    let
+      record = type: cond: {
+        zone_id = secret "cloudflare_zone_id";
+        name = "${name}.\${local.domain}";
+        inherit type;
+        content = svcAddr name cond;
+        ttl = 1;
+        proxied = false;
+      };
+    in
+    {
+      "${name}_a" = record "A" "!strcontains(a, \":\")";
+      "${name}_aaaa" = record "AAAA" "strcontains(a, \":\")";
+    }
+  ) exposes;
+
   resource.random_password.restic = {
     length = 48;
     special = false;
@@ -117,22 +180,8 @@ in
     lib.nameValuePair "host_${name}" {
       path = "../secrets/hosts/${name}.yaml";
       input_type = "yaml";
-      content_wo = "\${yamlencode({
-      tailscale_auth_key   = tailscale_tailnet_key.${name}.key,
-      vikunja_db_password = random_password.vikunja_db.result,
-      vikunja_jwt_secret  = random_password.vikunja_jwt.result,
-      restic_password   = random_password.restic.result,
-      restic_access_key = linode_object_storage_key.backups.access_key,
-      restic_secret_key = linode_object_storage_key.backups.secret_key,
-      restic_repository = \"s3:https://\${linode_object_storage_bucket.backups.s3_endpoint}/\${linode_object_storage_bucket.backups.label}/${name}\",
-    })}";
-      content_wo_version = "\${join(\",\", [
-      tailscale_tailnet_key.${name}.id,
-      random_password.restic.id,
-      linode_object_storage_key.backups.id,
-      random_password.vikunja_db.id,
-      random_password.vikunja_jwt.id,
-    ])}";
+      content_wo = "\${yamlencode(${hclObject (hostSecrets name)})}";
+      content_wo_version = "\${sha256(jsonencode(${hclObject (hostSecrets name)}))}";
       creation_rules.age_recipients = ageRecipients ++ [ "\${age_secret_key.${name}.public_key}" ];
     }
   ) hosts;
@@ -162,7 +211,10 @@ in
       source = "${nixosAnywhere}/nixos-rebuild";
       nixos_system = "\${module.build_${name}.result.out}";
       target_host = name; # MagicDNS
-      depends_on = [ "module.install_${name}" ];
+      depends_on = [
+        "module.install_${name}"
+        "tailscale_acl.policy"
+      ];
     };
   }) hosts;
 
