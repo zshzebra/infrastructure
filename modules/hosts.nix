@@ -40,6 +40,9 @@ in
         inputs.disko.nixosModules.disko
         inputs.sops-nix.nixosModules.sops
         self.nixosModules.core
+        self.nixosModules.homeManager
+        self.nixosModules.userZshzebra
+        self.nixosModules.userRoot
         self.nixosModules.stacks
         {
           networking.hostName = name;

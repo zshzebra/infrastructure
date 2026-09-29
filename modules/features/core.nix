@@ -1,5 +1,5 @@
 {
-  flake.nixosModules.core = {
+  flake.nixosModules.core = { pkgs, ... }: {
     nix.settings.experimental-features = [
       "nix-command"
       "flakes"
@@ -19,5 +19,7 @@
     users.users.root.openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINJmshD4Go+e+SL5Tv5p57BcMLxyg6UhwgC0zIN3hWGG zshzebra@host"
     ];
+
+    environment.systemPackages = [ pkgs.ghostty.terminfo ];
   };
 }
