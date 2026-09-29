@@ -39,7 +39,10 @@
           VIKUNJA_DATABASE_DATABASE = "vikunja";
         };
         environmentFiles = [ config.sops.templates."vikunja-app.env".path ];
-        volumes.files.path = "/app/vikunja/files";
+        volumes.files = {
+          path = "/app/vikunja/files";
+          chown = true;
+        };
         dependsOn = [ "db" ];
       };
 

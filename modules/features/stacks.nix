@@ -16,6 +16,10 @@
             type = types.bool;
             default = true;
           };
+          chown = mkOption {
+            type = types.bool;
+            default = false;
+          };
         };
       };
 
@@ -103,7 +107,9 @@
               inherit (c) image environment environmentFiles;
               networks = [ stackName ];
               dependsOn = map (d: "${stackName}-${d}") c.dependsOn;
-              volumes = lib.mapAttrsToList (vName: v: "${stack.dataDir}/${cName}/${vName}:${v.path}") c.volumes;
+              volumes = lib.mapAttrsToList (
+                vName: v: "${stack.dataDir}/${cName}/${vName}:${v.path}${lib.optionalString v.chown ":U"}"
+              ) c.volumes;
               ports = lib.mapAttrsToList (_: e: "127.0.0.1:${toString e.hostPort}:${toString e.port}") (
                 lib.filterAttrs (_: e: e.container == cName) stack.expose
               );
